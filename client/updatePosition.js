@@ -165,6 +165,13 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
             {
                 let neighbourPos = gridPos + vec3(x,y,z);
 
+                if (neighbourPos.x<0 || neighbourPos.x >=  uParams.gridDiv.x 
+                    || neighbourPos.y<0 || neighbourPos.y >=  uParams.gridDiv.y
+                    || neighbourPos.z<0 || neighbourPos.z >=  uParams.gridDiv.z)
+                {
+                    continue;
+                }
+
                 let gridHash = calcGridHash(neighbourPos);
                 let startIndex = select(0, bCellPrefixSum[gridHash-1], gridHash>0);
                 let endIndex =  bCellPrefixSum[gridHash];

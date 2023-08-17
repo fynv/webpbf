@@ -69,13 +69,11 @@ export class ParticleSystem
         let buf_size = this.sizeGridBuf;
         while (buf_size>0)
         {
-            let buf = engine_ctx.createBuffer0(buf_size * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC);    
+            let buf = engine_ctx.createBuffer0(buf_size * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);    
             this.dCellCountBufs.push(buf);
             this.dCellCountBufSizes.push(buf_size);
             buf_size = Math.floor((buf_size + workgroup_size_2x - 1)/workgroup_size_2x) - 1;
         }
-
-        this.buf_download = engine_ctx.createBuffer0(this.sizeGridBuf * 4, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);            
 
         this.dConstant = engine_ctx.createBuffer0(52 * 4, GPUBufferUsage.UNIFORM | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE);
 
@@ -661,9 +659,7 @@ export class ParticleSystem
         Scatter(commandEncoder, this);
         UpdateDensity(commandEncoder, this);
         UpdatePosition(commandEncoder, this);
-       
-        commandEncoder.copyBufferToBuffer(this.dCellCountBufs[0], 0, this.buf_download, 0, this.sizeGridBuf * 4);
-       
+         
         let cmdBuf = commandEncoder.finish();
         engine_ctx.queue.submit([cmdBuf]);
 
