@@ -9,17 +9,6 @@ import { UpdatePosition } from "./updatePosition.js"
 const workgroup_size = 64;
 const workgroup_size_2x = workgroup_size*2;
 
-const ncolors = 7;
-const c = [
-    [ 1.0, 0.0, 0.0, ],
-    [ 1.0, 0.5, 0.0, ],
-    [ 1.0, 1.0, 0.0, ],
-    [ 0.0, 1.0, 0.0, ],
-    [ 0.0, 1.0, 1.0, ],
-    [ 0.0, 0.0, 1.0, ],
-    [ 1.0, 0.0, 1.0, ]
-];
-
 export class ParticleSystem
 {
     constructor()
@@ -86,22 +75,7 @@ export class ParticleSystem
             buf_size = Math.floor((buf_size + workgroup_size_2x - 1)/workgroup_size_2x) - 1;
         }
 
-        this.buf_download = engine_ctx.createBuffer0(this.sizeGridBuf * 4, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);    
-
-        let hColor = new Float32Array(this.numParticles * 4);
-        for (let i=0; i<this.numParticles; i++)
-        {
-            let t = i/this.numParticles;
-            t *= (ncolors - 1);
-            let j = Math.floor(t);
-            let u =  t - j;
-            hColor[i*4] = (1.0 - u) * c[j][0] + u * c[j+1][0];
-            hColor[i*4 + 1] = (1.0 - u) * c[j][1] + u * c[j+1][1];
-            hColor[i*4 + 2] = (1.0 - u) * c[j][2] + u * c[j+1][2];
-            hColor[i*4 + 3] = 1.0;
-        }
-
-        this.dColor = engine_ctx.createBuffer(hColor.buffer, GPUBufferUsage.VERTEX);
+        this.buf_download = engine_ctx.createBuffer0(this.sizeGridBuf * 4, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);            
 
         this.dConstant = engine_ctx.createBuffer0(52 * 4, GPUBufferUsage.UNIFORM | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE);
 
@@ -635,53 +609,6 @@ export class ParticleSystem
         ];
 
         this.bind_group_update_position = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdatePosition, entries: group_entries_update_position});
-        
-        this._init_particles();
-
-    }
-
-    _init_particles()
-    {
-        let s =  Math.ceil(Math.pow(this.numParticles, 1.0/3.0));
-        let h = 1.5;
-
-        let x0 = - s * this.particleRadius;
-        let y0 = h  - s * this.particleRadius;
-        let z0 = - s * this.particleRadius;
-
-        let spacing = this.particleRadius * 2.0;
-
-        //let jitter = this.particleRadius * 0.01;
-        let jitter = 0.0;
-
-        for (let z=0; z<s; z++)
-        {
-            for (let y=0; y<s; y++)
-            {
-                for (let x=0; x< s; x++)
-                {
-                    let i = x + (y + z*s)*s;
-
-                    if (i<this.numParticles)
-                    {
-                        this.hPos[i*4] = x0 + spacing * x + (Math.random() * 2.0 - 1.0) * jitter;
-                        this.hPos[i*4 + 1] = y0 + spacing * y + (Math.random() * 2.0 - 1.0) * jitter;
-                        this.hPos[i*4 + 2] = z0 + spacing * z + (Math.random() * 2.0 - 1.0) * jitter;
-                        this.hPos[i*4 + 3] = 1.0;
-
-                        this.hVel[i*4] = 0.0;
-                        this.hVel[i*4 + 1] = 0.0;
-                        this.hVel[i*4 + 2] = 0.0;
-                        this.hVel[i*4 + 3] = 0.0;
-                    }
-
-                }
-            }
-        }
-
-        engine_ctx.queue.writeBuffer(this.dPos[0], 0, this.hPos.buffer, 0, this.hPos.length * 4);
-        engine_ctx.queue.writeBuffer(this.dVel, 0, this.hVel.buffer, 0, this.hVel.length * 4);
-
 
     }
 
