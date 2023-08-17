@@ -20,7 +20,7 @@ export class ParticleSystem
         this.particleMass = this.density * this.volume / this.numParticles;
         
         this.H = this.particleRadius * 4.0;
-        this.time_step = 0.005;         
+        this.time_step = 1.0/120.0;         
         this.gas_const =  20.0;
         this.pg = 10.0;
         this.gravity = 9.81;

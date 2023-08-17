@@ -9,42 +9,123 @@ import { RenderNaive } from "./render_naive.js"
 
 function init_particles(psystem)
 {
-    let s =  Math.ceil(Math.pow(psystem.numParticles, 1.0/3.0));
-    let h = 1.5;
+    let i=0;
+    let spacing = psystem.particleRadius * 2.0; 
 
-    let x0 = - s * psystem.particleRadius;
-    let y0 = h  - s * psystem.particleRadius;
-    let z0 = - s * psystem.particleRadius;
-
-    let spacing = psystem.particleRadius * 2.0;  
-
-    for (let z=0; z<s; z++)
+    for (let y=0; y<8; y++)
     {
-        for (let y=0; y<s; y++)
+        for (let x=0; x<64; x++)
         {
-            for (let x=0; x< s; x++)
+            for (let z=0; z<64; z++)
             {
-                let i = x + (y + z*s)*s;
+                psystem.hPos[i*4] = -1.0 + spacing * x;
+                psystem.hPos[i*4 + 1] = spacing * y;
+                psystem.hPos[i*4 + 2] = -1.0 + spacing * z;
+                psystem.hPos[i*4 + 3] = 1.0;
 
-                if (i<psystem.numParticles)
-                {
-                    psystem.hPos[i*4] = x0 + spacing * x;
-                    psystem.hPos[i*4 + 1] = y0 + spacing * y;
-                    psystem.hPos[i*4 + 2] = z0 + spacing * z;
-                    psystem.hPos[i*4 + 3] = 1.0;
+                psystem.hVel[i*4] = 0.0;
+                psystem.hVel[i*4 + 1] = 0.0;
+                psystem.hVel[i*4 + 2] = 0.0;
+                psystem.hVel[i*4 + 3] = 0.0;
 
-                    psystem.hVel[i*4] = 0.0;
-                    psystem.hVel[i*4 + 1] = 0.0;
-                    psystem.hVel[i*4 + 2] = 0.0;
-                    psystem.hVel[i*4 + 3] = 0.0;
-                }
-
+                i++;
             }
         }
     }
-
     engine_ctx.queue.writeBuffer(psystem.dPos[0], 0, psystem.hPos.buffer, 0, psystem.hPos.length * 4);
     engine_ctx.queue.writeBuffer(psystem.dVel, 0, psystem.hVel.buffer, 0, psystem.hVel.length * 4);
+}
+
+let count = 256;
+let speed = 2.0;
+let delta_t = 0.0;
+let idx = 0;
+
+function update_flow0(psystem)
+{
+    let radius = Math.sqrt(count/Math.PI) * psystem.particleRadius*2.0;
+
+    delta_t += psystem.time_step;
+    let dist = speed * delta_t;
+
+    while(dist>=psystem.particleRadius*2.0)
+    {
+        dist -= psystem.particleRadius*2.0;
+        delta_t = dist / speed;        
+        
+        let jitter = Math.random();
+        let i= idx;
+        for (let j=0; j<count; j++)
+        {
+            let r = Math.sqrt((j+0.5)/count) * radius;
+            let theta = j * 2.4 + jitter * 2.0 * Math.PI;   
+            
+            let x = r * Math.cos(theta);
+            let y = r * Math.sin(theta);
+
+            psystem.hPos[i*4] = -1.0 + dist;
+            psystem.hPos[i*4 + 1] = 2.0 - psystem.particleRadius * 2.0 - (radius + y);
+            psystem.hPos[i*4 + 2] = x;
+            psystem.hPos[i*4 + 3] = 1.0;
+
+            psystem.hVel[i*4] = speed;
+            psystem.hVel[i*4 + 1] = 0.0;
+            psystem.hVel[i*4 + 2] = 0.0;
+            psystem.hVel[i*4 + 3] = 0.0;
+
+            i++;
+        }
+      
+        engine_ctx.queue.writeBuffer(psystem.dPos[0], idx*4*4, psystem.hPos.buffer, idx*4*4, count*4*4);
+        engine_ctx.queue.writeBuffer(psystem.dVel, idx*4*4, psystem.hVel.buffer, idx*4*4, count*4*4);
+
+        idx = i % psystem.numParticles;
+    }
+
+}
+
+
+function update_flow(psystem)
+{
+    let radius = Math.sqrt(count*2.0/Math.PI) * psystem.particleRadius*2.0;
+
+    delta_t += psystem.time_step;
+    let dist = speed * delta_t;
+
+    while(dist>=psystem.particleRadius*2.0)
+    {
+        dist -= psystem.particleRadius*2.0;
+        delta_t = dist / speed;        
+        
+        let jitter = Math.random();
+        let i= idx;
+        for (let j=0; j<count; j++)
+        {
+            let r = Math.sqrt((j+0.5)/count) * radius;
+            let theta = j * 2.4 + jitter * 2.0 * Math.PI;   
+            
+            let x = r * Math.cos(theta);
+            let y = Math.abs(r * Math.sin(theta));
+
+            psystem.hPos[i*4] = -1.0 + dist;
+            psystem.hPos[i*4 + 1] = 2.0 - psystem.particleRadius * 2.0 - y;
+            psystem.hPos[i*4 + 2] = x;
+            psystem.hPos[i*4 + 3] = 1.0;
+
+            psystem.hVel[i*4] = speed;
+            psystem.hVel[i*4 + 1] = 0.0;
+            psystem.hVel[i*4 + 2] = 0.0;
+            psystem.hVel[i*4 + 3] = 0.0;
+
+            i++;
+        }
+      
+        engine_ctx.queue.writeBuffer(psystem.dPos[0], idx*4*4, psystem.hPos.buffer, idx*4*4, count*4*4);
+        engine_ctx.queue.writeBuffer(psystem.dVel, idx*4*4, psystem.hVel.buffer, idx*4*4, count*4*4);
+
+        idx = i % psystem.numParticles;
+    }
+
 }
 
 export async function test()
@@ -91,8 +172,11 @@ export async function test()
 
         render_target.update();
 
-        psystem.update();  
-        psystem.update();      
+        psystem.update();     
+        update_flow(psystem);      
+
+        psystem.update();     
+        update_flow(psystem);     
 
         camera.updateMatrixWorld(false);
     	camera.updateConstant();
