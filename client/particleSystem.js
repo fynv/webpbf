@@ -19,8 +19,8 @@ export class ParticleSystem
         this.particleRadius = Math.pow(this.volume / this.numParticles, 1.0/3.0) * 0.5;
         this.particleMass = this.density * this.volume / this.numParticles;
         
-        this.H = this.particleRadius * 4.0;
-        this.time_step = 1.0/120.0;         
+        this.H = this.particleRadius * 8.0;
+        this.time_step = 1.0/60.0;         
         this.gas_const =  20.0;
         this.pg = 10.0;
         this.gravity = 9.81;
@@ -61,7 +61,7 @@ export class ParticleSystem
         this.dGridParticleIndexInCell = engine_ctx.createBuffer0(this.numParticles * 4, GPUBufferUsage.STORAGE);
         this.dGridParticleIndex  = engine_ctx.createBuffer0(this.numParticles * 4, GPUBufferUsage.STORAGE);        
 
-        this.sizeGridBuf = 64*64*64;
+        this.sizeGridBuf = 32*32*32;
 
         this.dCellCountBufs = [];
         this.dCellCountBufSizes = [];

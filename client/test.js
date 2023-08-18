@@ -91,8 +91,7 @@ export async function test()
 
         render_target.update();
 
-        psystem.update();  
-        psystem.update();      
+        psystem.update();          
 
         camera.updateMatrixWorld(false);
     	camera.updateConstant();

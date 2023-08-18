@@ -173,10 +173,7 @@ export async function test()
         render_target.update();
 
         psystem.update();     
-        update_flow(psystem);      
-
-        psystem.update();     
-        update_flow(psystem);     
+        update_flow(psystem);       
 
         camera.updateMatrixWorld(false);
     	camera.updateConstant();
