@@ -75,7 +75,7 @@ fn fs_main(input: FSIn) -> @location(0) vec4f
     {
         discard;
     }
-    N.z = sqrt(1-mag);
+    N.z = sqrt(1-mag*mag);
     let diffuse = max(0.0, dot(lightDir, N));
     return vec4(input.color * diffuse, 1.0);
 }
@@ -149,7 +149,7 @@ function GetPipeline(view_format)
         };
     
         const pipelineDesc = {
-            layout: layout,
+            layout,
     
             vertex,
             fragment,
