@@ -173,7 +173,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
                 }
 
                 let gridHash = calcGridHash(neighbourPos);
-                let startIndex = select(0, bCellPrefixSum[gridHash-1], gridHash>0);
+                var startIndex = 0u;
+                if (gridHash>0)
+                {
+                    startIndex = bCellPrefixSum[gridHash-1];
+                }
                 let endIndex =  bCellPrefixSum[gridHash];
 
                 for (var j = startIndex; j< endIndex; j++)

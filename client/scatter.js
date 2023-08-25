@@ -36,7 +36,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
 
     let hash = bGridParticleHash[idx];
     let id_in_cell = bGridParticleIndexInCell[idx];
-    let offset = select(0, bCellPrefixSum[hash-1], hash>0);
+    var offset = 0u;
+    if (hash >0)
+    {
+        offset = bCellPrefixSum[hash-1];
+    }
     let new_idx = offset + id_in_cell;
 
     bSortedPos[new_idx] = bPos[idx];
