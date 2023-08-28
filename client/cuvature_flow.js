@@ -30,7 +30,7 @@ fn vs_main(@builtin(vertex_index) vertId: u32) -> VSOut
 }
 
 const Z_THRESHOLD = 5.0;
-const SMOOTH_DT = 0.0005;
+const SMOOTH_DT = 0.0003;
 
 fn depthToEyeSpaceZ(depth: f32) -> f32
 {
