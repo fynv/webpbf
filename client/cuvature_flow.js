@@ -77,7 +77,9 @@ fn fs_main(@builtin(position) coord_pix: vec4f) -> FSOut
 
     if (any(zDiff > vec4(Z_THRESHOLD)))
     {
-        discard;
+        var output: FSOut;
+        output.depth = z;
+        return output;
     }
 
     // Gradient (first derivative) with border handling
@@ -117,8 +119,7 @@ fn fs_main(@builtin(position) coord_pix: vec4f) -> FSOut
     let H2 = (Cy * Ex + Cx * Ey) / pow(D, 3.0 / 2.0);
 
     var output: FSOut;
-    output.depth = z + (0.5 * H2) * SMOOTH_DT;
-
+    output.depth = clamp(z + (0.5 * H2) * SMOOTH_DT, 0.001, 0.999);
     return output;
 }
 `;
