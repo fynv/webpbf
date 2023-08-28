@@ -258,7 +258,7 @@ export async function test()
             passEncoder.end();
         }
 
-        for (let i=0; i<15; i++)
+        for (let i=0; i<25; i++)
         {
             {
                 let depthAttachment = {
