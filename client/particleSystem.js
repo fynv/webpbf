@@ -11,7 +11,7 @@ const workgroup_size_2x = workgroup_size*2;
 
 export class ParticleSystem
 {
-    constructor()
+    constructor(global_min = [-1.0, 0.0, -1.0], global_max = [1.0, 2.0, 1.0])
     {
         this.density = 1000;
         this.numParticles = 1<< 15;
@@ -27,13 +27,13 @@ export class ParticleSystem
         this.pt = 0.6;
         this.pmin_sur_grad = 10.0;
 
-        this._initialize();
+        this._initialize(global_min, global_max);
     }
 
-    _initialize()
+    _initialize(global_min, global_max)
     {
-        this.global_min = [-1.0, 0.0, -1.0];
-        this.global_max = [1.0, 2.0, 1.0];
+        this.global_min = global_min;
+        this.global_max = global_max;
         this.hPos = new Float32Array(this.numParticles * 4);
         this.hVel = new Float32Array(this.numParticles * 4);
 
@@ -354,6 +354,19 @@ export class ParticleSystem
         let bindGroupLayoutUpdatePosition = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_update_position });
         engine_ctx.cache.bindGroupLayouts.update_position = bindGroupLayoutUpdatePosition;
 
+        let layout_entries_render = [
+            {
+                binding: 0,
+                visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                buffer:{
+                    type: "uniform"
+                }
+            },
+        ];
+        
+        let bindGroupLayoutRender = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_render });
+        engine_ctx.cache.bindGroupLayouts.particle_render = bindGroupLayoutRender;
+
         /////////////////////////////////////
 
         this.bind_group_particle_reduction = [];
@@ -608,6 +621,16 @@ export class ParticleSystem
 
         this.bind_group_update_position = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdatePosition, entries: group_entries_update_position});
 
+        let group_entries_render = [
+            {
+                binding: 0,
+                resource:{
+                    buffer: this.dConstant
+                }
+            }
+        ];
+
+        this.bind_group_render = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutRender, entries: group_entries_render});
     }
 
     update()
