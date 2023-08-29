@@ -99,7 +99,7 @@ fn fs_main(input: FSIn) -> @location(0) f32
     let r =  uParams.particleRadius* 2.0 * 0.8;
     let d = r * 2.0;
 
-    return 1.0 - pow(1.0-0.8, d);
+    return 1.0 - pow(1.0-0.4, d);
 }
 `;
 

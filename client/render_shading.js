@@ -147,7 +147,11 @@ fn fs_main(@builtin(position) coord_pix: vec4f) -> @location(0) vec4f
 
     let col1 = getReflRadiance(reflectVec, 0.0);       
     let col2 = vec3(0.05, 0.1, 0.3);        
-    return vec4(col1 * 0.3 + col2 * alpha, alpha);
+    // return vec4(col1 * 0.3 + col2 * alpha, alpha);
+
+    let refractVec = refract(-viewDir, WorldNormal.xyz, 1.0/1.33);
+    let col3 = getReflRadiance(refractVec, 0.0);  
+    return vec4(col1 * 0.3 + col2 * alpha + col3*(1.0-alpha), 1.0);
 }
 `;
 
