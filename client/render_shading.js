@@ -136,7 +136,7 @@ fn fs_main(@builtin(position) coord_pix: vec4f) -> @location(0) vec4f
     let viewDir = normalize(uCamera.eyePos.xyz - WorldPos.xyz);
     let reflectVec = reflect(-viewDir, WorldNormal.xyz);
 
-    let col = getReflRadiance(reflectVec, 0.5);    
+    let col = getReflRadiance(reflectVec, 0.0);    
         
     return vec4(col * 0.3, 0.0);
 }
