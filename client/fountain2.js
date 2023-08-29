@@ -14,8 +14,8 @@ import { EnvironmentMapCreator} from "./engine/lights/EnvironmentMapCreator.js"
 import { ParticleTarget } from "./ParticleTarget.js"
 import { RenderDepth } from "./render_depth.js"
 import { CurvatureFlow } from "./cuvature_flow.js"
-import { RenderShading } from "./render_shading.js"
 import { RenderThickness } from "./render_thickness.js"
+import { RenderShading } from "./render_shading.js"
 
 function init_particles(psystem)
 {
@@ -238,8 +238,8 @@ export async function test()
             passEncoder.setViewport(
                 0,
                 0,
-                render_target.width,
-                render_target.height,
+                particle_target.depth_width,
+                particle_target.depth_height,
                 0,
                 1
             );
@@ -247,8 +247,8 @@ export async function test()
             passEncoder.setScissorRect(
                 0,
                 0,
-                render_target.width,
-                render_target.height,
+                particle_target.depth_width,
+                particle_target.depth_height,
             );
 
             RenderDepth(passEncoder, camera, psystem);
@@ -256,7 +256,7 @@ export async function test()
             passEncoder.end();
         }
 
-        for (let i=0; i<25; i++)
+        for (let i=0; i<15; i++)
         {
             {
                 let depthAttachment = {
@@ -275,8 +275,8 @@ export async function test()
                 passEncoder.setViewport(
                     0,
                     0,
-                    render_target.width,
-                    render_target.height,
+                    particle_target.depth_width,
+                    particle_target.depth_height,
                     0,
                     1
                 );
@@ -284,11 +284,11 @@ export async function test()
                 passEncoder.setScissorRect(
                     0,
                     0,
-                    render_target.width,
-                    render_target.height,
+                    particle_target.depth_width,
+                    particle_target.depth_height,
                 );
 
-                CurvatureFlow(passEncoder, camera, particle_target.bind_groups[0]);
+                CurvatureFlow(passEncoder, camera, particle_target.bind_groups_depth[0]);
             
                 passEncoder.end();
 
@@ -311,8 +311,8 @@ export async function test()
                 passEncoder.setViewport(
                     0,
                     0,
-                    render_target.width,
-                    render_target.height,
+                    particle_target.depth_width,
+                    particle_target.depth_height,
                     0,
                     1
                 );
@@ -320,30 +320,65 @@ export async function test()
                 passEncoder.setScissorRect(
                     0,
                     0,
-                    render_target.width,
-                    render_target.height,
+                    particle_target.depth_width,
+                    particle_target.depth_height,
                 );
 
-                CurvatureFlow(passEncoder, camera, particle_target.bind_groups[1]);
+                CurvatureFlow(passEncoder, camera, particle_target.bind_groups_depth[1]);
             
                 passEncoder.end();
 
             }
         }
 
-        let clearColor = new Color(0.0, 0.0, 0.0);
+        {
+            let colorAttachment =  {            
+                view: particle_target.view_thickness,
+                clearValue: { r: 1, g: 1, b: 1, a: 1 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            };
 
-        let colorAttachment =  {            
-            view: render_target.view_video,
-            clearValue: { r: clearColor.r, g: clearColor.g, b: clearColor.b, a: 1 },
-            loadOp: 'clear',
-            storeOp: 'store'
-        };
-
-        {               
-            
             let renderPassDesc = {
-                colorAttachments: [colorAttachment], 
+                colorAttachments: [colorAttachment]
+            }; 
+            let passEncoder = commandEncoder.beginRenderPass(renderPassDesc);
+
+            passEncoder.setViewport(
+                0,
+                0,
+                render_target.width,
+                render_target.height,
+                0,
+                1
+            );
+        
+            passEncoder.setScissorRect(
+                0,
+                0,
+                render_target.width,
+                render_target.height,
+            );
+
+            RenderThickness(passEncoder, camera, psystem);
+            
+          
+            passEncoder.end();
+
+        }
+        
+        {
+            let clearColor = new Color(0.0, 0.0, 0.0);
+
+            let colorAttachment =  {            
+                view: render_target.view_video,
+                clearValue: { r: clearColor.r, g: clearColor.g, b: clearColor.b, a: 1 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            };
+
+            let renderPassDesc = {
+                colorAttachments: [colorAttachment]
             }; 
             let passEncoder = commandEncoder.beginRenderPass(renderPassDesc);
 
@@ -364,9 +399,7 @@ export async function test()
             );
 
             DrawSkyBox(passEncoder, render_target, camera, bg);
-
-            RenderThickness(passEncoder, camera, psystem, render_target);
-            RenderShading(passEncoder, camera, particle_target.bind_groups[0], bind_group_envmap, render_target);
+            RenderShading(passEncoder, camera, particle_target.bind_group_frame, bind_group_envmap, render_target);
           
             passEncoder.end();
 

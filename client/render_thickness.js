@@ -36,7 +36,6 @@ struct Params
 @group(1) @binding(0)
 var<uniform> uParams : Params;
 
-
 struct VSIn 
 {
     @builtin(vertex_index) vertId: u32,
@@ -86,7 +85,7 @@ struct FSIn
 
 
 @fragment
-fn fs_main(input: FSIn) -> @location(0) vec4f
+fn fs_main(input: FSIn) -> @location(0) f32
 {
     var N: vec3f;
     N = vec3(input.uv * 2.0 -1.0, 0.0);
@@ -100,25 +99,23 @@ fn fs_main(input: FSIn) -> @location(0) vec4f
     let r =  uParams.particleRadius* 2.0 * 0.8;
     let d = r * 2.0;
 
-    let alpha = 1.0 - pow(1.0-0.8, d);
-    let col = vec3(0.05, 0.1, 0.3);
-    return vec4(col*alpha, alpha);
+    return 1.0 - pow(1.0-0.8, d);
 }
 `;
 
 
-function GetPipeline(view_format)
+function GetPipeline()
 {
     if (!("render_particle_thickness" in engine_ctx.cache.pipelines))
     {
         let camera_options = { has_reflector: false };
         let camera_signature =  JSON.stringify(camera_options);
         let camera_layout = engine_ctx.cache.bindGroupLayouts.perspective_camera[camera_signature];    
-    
+        
         const pipelineLayoutDesc = { bindGroupLayouts: [camera_layout, engine_ctx.cache.bindGroupLayouts.particle_render] };
         let layout = engine_ctx.device.createPipelineLayout(pipelineLayoutDesc);
         let shaderModule = engine_ctx.device.createShaderModule({ code: shader_code });    
-   
+
         let vertex_bufs = [
             {            
                 arrayStride: 4*4,
@@ -132,7 +129,7 @@ function GetPipeline(view_format)
                 ],
             }
         ];
-        
+
         const vertex = {
             module: shaderModule,
             entryPoint: 'vs_main',
@@ -140,15 +137,15 @@ function GetPipeline(view_format)
         };
 
         const colorState = {
-            format:  view_format,           
+            format:  "r8unorm",
             blend: {
                 color: {
-                    srcFactor: "one",
-                    dstFactor: "one-minus-src-alpha"
+                    srcFactor: "zero",
+                    dstFactor: "one-minus-src"
                 },
                 alpha: {
-                    srcFactor: "one",
-                    dstFactor: "one-minus-src-alpha"
+                    srcFactor: "zero",
+                    dstFactor: "one-minus-src"
                 }
             },
             writeMask: GPUColorWrite.ALL
@@ -174,17 +171,16 @@ function GetPipeline(view_format)
     
             primitive
         };
-    
+
         engine_ctx.cache.pipelines.render_particle_thickness = engine_ctx.device.createRenderPipeline(pipelineDesc); 
     }
 
     return engine_ctx.cache.pipelines.render_particle_thickness;
 }
-    
 
-export function RenderThickness(passEncoder, camera, psystem, target)
+export function RenderThickness(passEncoder, camera, psystem)
 {
-    let pipeline = GetPipeline(target.view_format);
+    let pipeline = GetPipeline();
 
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, camera.bind_group);
@@ -194,8 +190,6 @@ export function RenderThickness(passEncoder, camera, psystem, target)
 
     passEncoder.draw(6, psystem.numParticles);
 }
-
-
 
 
 

@@ -12,12 +12,19 @@ struct Camera
 var<uniform> uCamera: Camera;
 
 @group(1) @binding(0)
-var uTex: texture_2d<f32>;
+var uTexThickness: texture_2d<f32>;
+
+@group(1) @binding(1)
+var uTexDepth: texture_depth_2d;
+
+@group(1) @binding(2)
+var uSampler1: sampler;
 
 struct VSOut 
 {
     @builtin(position) Position: vec4f,    
 };
+
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertId: u32) -> VSOut
@@ -29,16 +36,16 @@ fn vs_main(@builtin(vertex_index) vertId: u32) -> VSOut
     return vsOut;
 }
 
-fn fetch_pos(id: vec2i) -> vec4f
+fn fetch_pos(id: vec2i) -> vec3f
 {
-    let size = textureDimensions(uTex);
+    let size = textureDimensions(uTexThickness);
     var UV = (vec2f(id)+0.5)/vec2f(size);
-    UV.y = 1.0 - UV.y;
-    let depth = textureLoad(uTex, id, 0).x; 
+    let depth = textureSampleLevel(uTexDepth, uSampler1, UV, 0);
+    UV.y = 1.0 - UV.y;    
     let pos_clip = vec3(UV*2.0 -1.0, depth);
     var pos_view = uCamera.invProjMat * vec4(pos_clip, 1.0);
     pos_view *= 1.0/pos_view.w;
-    return vec4(pos_view.xyz, depth);
+    return pos_view.xyz;
 }
 
 fn MinDiff(P: vec3f, Pr: vec3f, Pl: vec3f) -> vec3f
@@ -55,7 +62,7 @@ fn ReconstructNormal(id: vec2i, P: vec3f) -> vec3f
     var Pl = fetch_pos(id + vec2(-1, 0));
     var Pt = fetch_pos(id + vec2(0, -1));
     var Pb = fetch_pos(id + vec2(0, 1));
-    return normalize(cross(MinDiff(P, Pr.xyz, Pl.xyz), MinDiff(P, Pt.xyz, Pb.xyz)));
+    return normalize(cross(MinDiff(P, Pr, Pl), MinDiff(P, Pt, Pb)));
 }
 
 struct EnvironmentMap
@@ -99,6 +106,9 @@ fn getIrradiance(world_pos: vec3f, normal: vec3f) -> vec3f
 @group(2) @binding(1)
 var uReflectionMap: texture_cube<f32>;
 
+@group(2) @binding(2)
+var uSampler2: sampler;
+
 fn getReflRadiance(reflectVec: vec3f, roughness: f32) -> vec3f
 {
     var gloss : f32;
@@ -113,34 +123,34 @@ fn getReflRadiance(reflectVec: vec3f, roughness: f32) -> vec3f
         gloss = log(2.0/r4 - 1.0)/log(2.0)/18.0;
     }
     let mip = (1.0-gloss)*6.0;
-    return textureSampleLevel(uReflectionMap, uSampler, reflectVec, mip).xyz;
+    return textureSampleLevel(uReflectionMap, uSampler2, reflectVec, mip).xyz;
 }
-
-@group(2) @binding(2)
-var uSampler: sampler;
 
 @fragment
 fn fs_main(@builtin(position) coord_pix: vec4f) -> @location(0) vec4f
 {
     let icoord2d = vec2i(coord_pix.xy);
-    let ViewPosition = fetch_pos(icoord2d);
-    if (ViewPosition.w>=1.0)
+    let alpha = 1.0 - textureLoad(uTexThickness, icoord2d, 0).x;
+    if (alpha <=0.0)
     {
         discard;
-    }
-    let ViewNormal = ReconstructNormal(icoord2d, ViewPosition.xyz);   
+    }    
 
-    let WorldPos =  uCamera.invViewMat * vec4(ViewPosition.xyz, 1.0);
+    let ViewPosition = fetch_pos(icoord2d);
+    let ViewNormal = ReconstructNormal(icoord2d, ViewPosition);
+
+    let WorldPos =  uCamera.invViewMat * vec4(ViewPosition, 1.0);
     let WorldNormal = uCamera.invViewMat * vec4(ViewNormal, 0.0);
 
     let viewDir = normalize(uCamera.eyePos.xyz - WorldPos.xyz);
     let reflectVec = reflect(-viewDir, WorldNormal.xyz);
 
-    let col = getReflRadiance(reflectVec, 0.0);    
-        
-    return vec4(col * 0.3, 0.0);
+    let col1 = getReflRadiance(reflectVec, 0.0);       
+    let col2 = vec3(0.05, 0.1, 0.3);        
+    return vec4(col1 * 0.3 + col2 * alpha, alpha);
 }
 `;
+
 
 function GetPipeline(view_format)
 {
@@ -150,7 +160,7 @@ function GetPipeline(view_format)
         let camera_signature =  JSON.stringify(camera_options);
         let camera_layout = engine_ctx.cache.bindGroupLayouts.perspective_camera[camera_signature];
 
-        const pipelineLayoutDesc = { bindGroupLayouts: [ camera_layout, engine_ctx.cache.bindGroupLayouts.particle_depth, engine_ctx.cache.bindGroupLayouts.envmap] };
+        const pipelineLayoutDesc = { bindGroupLayouts: [ camera_layout, engine_ctx.cache.bindGroupLayouts.particle_frame, engine_ctx.cache.bindGroupLayouts.envmap] };
         let layout = engine_ctx.device.createPipelineLayout(pipelineLayoutDesc);
         let shaderModule = engine_ctx.device.createShaderModule({ code: shader_code });
 
@@ -197,6 +207,7 @@ function GetPipeline(view_format)
         };
 
         engine_ctx.cache.pipelines.render_particle_shading = engine_ctx.device.createRenderPipeline(pipelineDesc);
+
     }
 
     return engine_ctx.cache.pipelines.render_particle_shading;
@@ -213,3 +224,5 @@ export function RenderShading(passEncoder, camera, bind_group_frame, bind_group_
     passEncoder.setBindGroup(2, bind_group_light);
     passEncoder.draw(3, 1);
 }
+
+
