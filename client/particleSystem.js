@@ -1,5 +1,6 @@
 import { ParticleReduction } from "./particleReduction.js"
 import { UpdateConstant } from "./updateConstant.js"
+import { ClearCellCount } from "./clear_cellcount.js"
 import { HashCount } from "./hashCount.js"
 import { PrefixSum } from "./prefix_sum.js"
 import { Scatter } from "./scatter.js"
@@ -109,6 +110,26 @@ export class ParticleSystem
 
         let bindGroupLayoutUpdateConstant = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_update_constant });
         engine_ctx.cache.bindGroupLayouts.update_const = bindGroupLayoutUpdateConstant;
+
+        let layout_entries_clear_count = [
+            {
+                binding: 0,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "uniform"
+                }
+            },
+            {
+                binding: 1,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "storage"
+                }
+            },
+        ];
+
+        let bindGroupLayoutClearCount = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_clear_count });
+        engine_ctx.cache.bindGroupLayouts.clear_count = bindGroupLayoutClearCount;
 
         let layout_entries_hash_count = [
             {
@@ -403,6 +424,23 @@ export class ParticleSystem
             this.bind_group_update_constant = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdateConstant, entries: group_entries});
         }
 
+        let group_entries_clear_count = [
+            {
+                binding: 0,
+                resource:{
+                    buffer: this.dConstant            
+                }
+            },
+            {
+                binding: 1,
+                resource:{
+                    buffer: this.dCellCountBufs[0]
+                }
+            },
+        ];
+
+        this.bind_group_clear_count = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutClearCount, entries: group_entries_clear_count});
+
         let group_entries_hash_count = [
             {
                 binding: 0,
@@ -669,14 +707,10 @@ export class ParticleSystem
             engine_ctx.queue.writeBuffer(this.dConstant, 0, uniform.buffer, uniform.byteOffset, uniform.byteLength);
         }
 
-        {
-            const cell_count = new Uint32Array(this.sizeGridBuf);        
-            engine_ctx.queue.writeBuffer(this.dCellCountBufs[0], 0, cell_count.buffer, cell_count.byteOffset, cell_count.byteLength);            
-        }
-
         let commandEncoder = engine_ctx.device.createCommandEncoder();    
         ParticleReduction(commandEncoder, this);
         UpdateConstant(commandEncoder, this);
+        ClearCellCount(commandEncoder, this);
         HashCount(commandEncoder, this);
         PrefixSum(commandEncoder, this);
         Scatter(commandEncoder, this);

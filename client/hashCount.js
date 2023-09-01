@@ -26,11 +26,6 @@ struct Params
 @group(0) @binding(0)
 var<uniform> uParams : Params;
 
-const worldOrigin = vec3(-1.0, -1.0, -1.0);
-const particleRadius = 1.0/ 64.0;
-const cellSize = vec3(particleRadius * 2.0);
-const gridSize = vec3i(64);
-
 @group(0) @binding(1)
 var<storage, read> bPos : array<vec4f>;
 
