@@ -1,4 +1,4 @@
-import get_module from './_CWBVH.js'
+import get_module from './CWBVH_Wasm.js'
 
 let module = null;
 
