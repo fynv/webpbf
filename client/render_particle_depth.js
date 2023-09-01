@@ -183,7 +183,7 @@ function GetPipeline()
 }
 
 
-export function RenderDepth(passEncoder, camera, psystem)
+export function RenderParticleDepth(passEncoder, camera, psystem)
 {
     let pipeline = GetPipeline();
 

@@ -12,7 +12,7 @@ import { ImageLoader } from "./engine/loaders/ImageLoader.js"
 import { DrawSkyBox } from "./engine/renderers/routines/DrawSkyBox.js"
 import { EnvironmentMapCreator} from "./engine/lights/EnvironmentMapCreator.js"
 import { ParticleTarget } from "./ParticleTarget.js"
-import { RenderDepth } from "./render_depth.js"
+import { RenderParticleDepth } from "./render_particle_depth.js"
 import { CurvatureFlow } from "./cuvature_flow.js"
 import { RenderThickness } from "./render_thickness.js"
 import { RenderShading } from "./render_shading.js"
@@ -253,7 +253,7 @@ export async function test()
                 particle_target.depth_height,
             );
 
-            RenderDepth(passEncoder, camera, psystem);
+            RenderParticleDepth(passEncoder, camera, psystem);
           
             passEncoder.end();
         }
@@ -341,8 +341,16 @@ export async function test()
                 storeOp: 'store'
             };
 
+            let depthAttachment = {
+                view: render_target.view_depth,
+                depthClearValue: 1,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+            };
+
             let renderPassDesc = {
-                colorAttachments: [colorAttachment]
+                colorAttachments: [colorAttachment],
+                depthStencilAttachment: depthAttachment 
             }; 
             let passEncoder = commandEncoder.beginRenderPass(renderPassDesc);
 

@@ -5,7 +5,10 @@ import { HashCount } from "./hashCount.js"
 import { PrefixSum } from "./prefix_sum.js"
 import { Scatter } from "./scatter.js"
 import { UpdateDensity } from "./updateDensity.js"
-import { UpdatePosition } from "./updatePosition.js"
+import { UpdateVelocity } from "./updateVelocity.js"
+import { UpdatePosition2 } from "./updatePosition2.js"
+import { RaycastTarget } from "./RaycastTarget1.js"
+import { RaycastCollide } from "./raycast_collide.js"
 
 const workgroup_size = 64;
 const workgroup_size_2x = workgroup_size*2;
@@ -38,7 +41,6 @@ export class ParticleSystem
         this.hPos = new Float32Array(this.numParticles * 4);
         this.hVel = new Float32Array(this.numParticles * 4);
 
-
         this.dPos = [];
         
         let count = this.numParticles;    
@@ -51,8 +53,8 @@ export class ParticleSystem
             count = Math.floor((count + workgroup_size_2x - 1)/workgroup_size_2x);
             let buf = engine_ctx.createBuffer0(count*4*4, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC);
             this.dPos.push(buf);
-        }               
-
+        }      
+        
         this.dVel = engine_ctx.createBuffer0(this.numParticles * 4 * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
         this.dSortedPos = engine_ctx.createBuffer0(this.numParticles * 4 * 4, GPUBufferUsage.STORAGE);
         this.dSortedVel = engine_ctx.createBuffer0(this.numParticles * 4 * 4, GPUBufferUsage.STORAGE);
@@ -77,6 +79,9 @@ export class ParticleSystem
         }
 
         this.dConstant = engine_ctx.createBuffer0(52 * 4, GPUBufferUsage.UNIFORM | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST | GPUBufferUsage.STORAGE);
+        this.raycast_target = new RaycastTarget(this);
+
+        ////////////////////////////
 
         let layout_entries_particle_reduction = [    
             {
@@ -306,6 +311,48 @@ export class ParticleSystem
         let bindGroupLayoutUpdateDensity = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_update_density });
         engine_ctx.cache.bindGroupLayouts.update_density = bindGroupLayoutUpdateDensity;
 
+        let layout_entries_update_velocity = [
+            {
+                binding: 0,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "uniform"
+                }
+            },     
+            {
+                binding: 1,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "read-only-storage"
+                }
+            },
+            {
+                binding: 2,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "storage"
+                }
+            },
+            {
+                binding: 3,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "read-only-storage"
+                }
+            },
+            {
+                binding: 4,
+                visibility: GPUShaderStage.COMPUTE,
+                buffer:{
+                    type: "read-only-storage"
+                }
+            },
+
+        ];
+
+        let bindGroupLayoutUpdateVelocity = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_update_velocity });
+        engine_ctx.cache.bindGroupLayouts.update_velocity = bindGroupLayoutUpdateVelocity;
+
         let layout_entries_update_position = [
             {
                 binding: 0,
@@ -313,7 +360,7 @@ export class ParticleSystem
                 buffer:{
                     type: "uniform"
                 }
-            },                     
+            },
             {
                 binding: 1,
                 visibility: GPUShaderStage.COMPUTE,
@@ -362,11 +409,11 @@ export class ParticleSystem
                 buffer:{
                     type: "read-only-storage"
                 }
-            },
+            }
         ];
 
         let bindGroupLayoutUpdatePosition = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_update_position });
-        engine_ctx.cache.bindGroupLayouts.update_position = bindGroupLayoutUpdatePosition;
+        engine_ctx.cache.bindGroupLayouts.update_position2 = bindGroupLayoutUpdatePosition;
 
         let layout_entries_render = [
             {
@@ -592,6 +639,42 @@ export class ParticleSystem
 
         this.bind_group_update_density = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdateDensity, entries: group_entries_update_density});
 
+        let group_entries_update_velocity = [
+            {
+                binding: 0,
+                resource:{
+                    buffer: this.dConstant
+                }
+            },            
+            {
+                binding: 1,
+                resource:{
+                    buffer: this.dSortedPos
+                }
+            },
+            {
+                binding: 2,
+                resource:{
+                    buffer: this.dSortedVel
+                }
+            },
+            {
+                binding: 3,
+                resource:{
+                    buffer: this.dSortedDensity
+                }
+            },            
+            {
+                binding: 4,
+                resource:{
+                    buffer: this.dCellCountBufs[0]
+                }
+            },
+           
+        ];
+
+        this.bind_group_update_velocity = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdateVelocity, entries: group_entries_update_velocity});
+
         let group_entries_update_position = [
             {
                 binding: 0,
@@ -626,22 +709,21 @@ export class ParticleSystem
             {
                 binding: 5,
                 resource:{
-                    buffer: this.dSortedDensity
+                    buffer: this.dGridParticleIndex
                 }
             },
             {
                 binding: 6,
                 resource:{
-                    buffer: this.dGridParticleIndex
+                    buffer: this.raycast_target.buf_depth
                 }
             },
             {
                 binding: 7,
                 resource:{
-                    buffer: this.dCellCountBufs[0]
+                    buffer: this.raycast_target.buf_normal
                 }
-            },
-           
+            }
         ];
 
         this.bind_group_update_position = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutUpdatePosition, entries: group_entries_update_position});
@@ -658,7 +740,7 @@ export class ParticleSystem
         this.bind_group_render = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutRender, entries: group_entries_render});
     }
 
-    update()
+    update(model)
     {
         {
             const uniform = new Float32Array(32);
@@ -702,10 +784,27 @@ export class ParticleSystem
         PrefixSum(commandEncoder, this);
         Scatter(commandEncoder, this);
         UpdateDensity(commandEncoder, this);
-        UpdatePosition(commandEncoder, this);
-         
+        UpdateVelocity(commandEncoder, this);
+
+        this.raycast_target.clear(commandEncoder);
+
+        for (let mesh of model.meshes)
+        {
+            for (let primitive of mesh.primitives)
+            {
+                if (!primitive.cwbvh.is_ready) continue;
+                RaycastCollide(commandEncoder, primitive.cwbvh, this.raycast_target);
+            }
+        }
+
+        UpdatePosition2(commandEncoder, this);
+
         let cmdBuf = commandEncoder.finish();
         engine_ctx.queue.submit([cmdBuf]);
 
+
+
     }
+
 }
+

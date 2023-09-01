@@ -12,23 +12,28 @@ function init_particles(psystem)
     let i=0;
     let spacing = psystem.particleRadius * 2.0; 
 
-    for (let y=0; y<8; y++)
+    let w = Math.ceil(2.0 / psystem.particleRadius / 2.0);
+    let h = Math.ceil(0.25 / psystem.particleRadius / 2.0);
+
+    for (let y=0; y<h; y++)
     {
-        for (let x=0; x<64; x++)
+        for (let x=0; x<w; x++)
         {
-            for (let z=0; z<64; z++)
+            for (let z=0; z<w; z++)
             {
-                psystem.hPos[i*4] = -1.0 + spacing * x;
-                psystem.hPos[i*4 + 1] = spacing * y;
-                psystem.hPos[i*4 + 2] = -1.0 + spacing * z;
-                psystem.hPos[i*4 + 3] = 1.0;
+                if (i< psystem.numParticles)
+                {
+                    psystem.hPos[i*4] = -1.0 + psystem.particleRadius + spacing * x;
+                    psystem.hPos[i*4 + 1] = psystem.particleRadius + spacing * y;
+                    psystem.hPos[i*4 + 2] = -1.0 +  psystem.particleRadius + spacing * z;
+                    psystem.hPos[i*4 + 3] = 1.0;
 
-                psystem.hVel[i*4] = 0.0;
-                psystem.hVel[i*4 + 1] = 0.0;
-                psystem.hVel[i*4 + 2] = 0.0;
-                psystem.hVel[i*4 + 3] = 0.0;
-
-                i++;
+                    psystem.hVel[i*4] = 0.0;
+                    psystem.hVel[i*4 + 1] = 0.0;
+                    psystem.hVel[i*4 + 2] = 0.0;
+                    psystem.hVel[i*4 + 3] = 0.0;
+                    i++;
+                }
             }
         }
     }
@@ -36,57 +41,13 @@ function init_particles(psystem)
     engine_ctx.queue.writeBuffer(psystem.dVel, 0, psystem.hVel.buffer, 0, psystem.hVel.length * 4);
 }
 
-let count = 256;
 let speed = 2.0;
 let delta_t = 0.0;
 let idx = 0;
 
-function update_flow0(psystem)
-{
-    let radius = Math.sqrt(count/Math.PI) * psystem.particleRadius*2.0;
-
-    delta_t += psystem.time_step;
-    let dist = speed * delta_t;
-
-    while(dist>=psystem.particleRadius*2.0)
-    {
-        dist -= psystem.particleRadius*2.0;
-        delta_t = dist / speed;        
-        
-        let jitter = Math.random();
-        let i= idx;
-        for (let j=0; j<count; j++)
-        {
-            let r = Math.sqrt((j+0.5)/count) * radius;
-            let theta = j * 2.4 + jitter * 2.0 * Math.PI;   
-            
-            let x = r * Math.cos(theta);
-            let y = r * Math.sin(theta);
-
-            psystem.hPos[i*4] = -1.0 + dist;
-            psystem.hPos[i*4 + 1] = 2.0 - psystem.particleRadius * 2.0 - (radius + y);
-            psystem.hPos[i*4 + 2] = x;
-            psystem.hPos[i*4 + 3] = 1.0;
-
-            psystem.hVel[i*4] = speed;
-            psystem.hVel[i*4 + 1] = 0.0;
-            psystem.hVel[i*4 + 2] = 0.0;
-            psystem.hVel[i*4 + 3] = 0.0;
-
-            i++;
-        }
-      
-        engine_ctx.queue.writeBuffer(psystem.dPos[0], idx*4*4, psystem.hPos.buffer, idx*4*4, count*4*4);
-        engine_ctx.queue.writeBuffer(psystem.dVel, idx*4*4, psystem.hVel.buffer, idx*4*4, count*4*4);
-
-        idx = i % psystem.numParticles;
-    }
-
-}
-
-
 function update_flow(psystem)
 {
+    let count = Math.pow(Math.ceil(0.5/psystem.particleRadius / 2.0), 2.0);
     let radius = Math.sqrt(count*2.0/Math.PI) * psystem.particleRadius*2.0;
 
     delta_t += psystem.time_step;
@@ -127,6 +88,7 @@ function update_flow(psystem)
     }
 
 }
+
 
 export async function test()
 {

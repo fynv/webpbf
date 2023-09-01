@@ -4,6 +4,9 @@ export class ParticleTarget
     {
         this.tex_thickness = null;
         this.view_thickness = null;
+        this.tex_depth0 = null;
+        this.view_depth0 = null;
+
         this.tex_depth = [null, null];
         this.view_depth = [null, null];
         this.width = -1;
@@ -31,6 +34,14 @@ export class ParticleTarget
             });
             
             this.view_thickness =  this.tex_thickness.createView();
+            
+            this.tex_depth0 = engine_ctx.device.createTexture({
+                size: [width, height],
+                dimension: "2d",
+                format: 'depth32float',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+            });
+            this.view_depth0 = this.tex_depth0.createView();
 
             this.width = width;
             this.height = height;            

@@ -116,6 +116,12 @@ function GetPipeline()
         let layout = engine_ctx.device.createPipelineLayout(pipelineLayoutDesc);
         let shaderModule = engine_ctx.device.createShaderModule({ code: shader_code });    
 
+        const depthStencil = {
+            depthWriteEnabled: false,
+            depthCompare: 'less-equal',
+            format: 'depth32float'
+        };
+
         let vertex_bufs = [
             {            
                 arrayStride: 4*4,
@@ -169,7 +175,8 @@ function GetPipeline()
             vertex,
             fragment,
     
-            primitive
+            primitive,
+            depthStencil
         };
 
         engine_ctx.cache.pipelines.render_particle_thickness = engine_ctx.device.createRenderPipeline(pipelineDesc); 

@@ -119,6 +119,7 @@ fn bvh8_node_intersect(ray: Ray, oct_inv4: u32, node: BVH8Node) -> u32
 struct Intersection
 {
     hit: bool,
+    triangle_index: i32,
     t: f32,
     u: f32,
     v: f32
@@ -182,9 +183,15 @@ fn SHARED_STACK_INDEX(offset: i32) -> i32
 }
 
 var<private> g_ray : Ray;
+var<private> g_ray_hit : Intersection;
 
 fn intersect()
 {
+    g_ray_hit.triangle_index = -1;
+	g_ray_hit.t = g_ray.tmax;
+	g_ray_hit.u = 0.0;
+	g_ray_hit.v = 0.0;
+
     var stack: array<vec2u, ${LOCAL_STACK_SIZE}>;
     var stack_size = 0;
 
@@ -250,7 +257,11 @@ fn intersect()
 			let tri_idx = i32(triangle_group.x + triangle_index);
 			let intersection = triangle_intersect(tri_idx, g_ray);
 			if (intersection.hit)
-			{				
+			{		
+                g_ray_hit.triangle_index = tri_idx;
+				g_ray_hit.t = intersection.t;
+				g_ray_hit.u = intersection.u;
+				g_ray_hit.v = intersection.v;                		
 				g_ray.tmax = intersection.t;			
 			}
 		}			
@@ -290,8 +301,43 @@ var<private> g_dir: vec3f;
 var<private> g_tmin: f32;
 var<private> g_tmax: f32;
 
+struct Params
+{
+    globalMin: vec4f,
+    globalMax: vec4f,
+    gridMin: vec4f,
+    gridMax: vec4f,
+    gridDiv: vec4i,
+    numParticles: u32,
+    particleRadius: f32,
+    numGridCells: u32,
+    sizeGridBuf: u32,
+    h: f32,
+    particleMass: f32,
+    time_step: f32,
+    gas_const: f32,
+    pg: f32,
+    gravity: f32,
+    pt: f32,
+    pmin_sur_grad: f32
+};
+
 @group(1) @binding(0)
+var<uniform> uParams : Params;
+
+@group(1) @binding(1)
+var<storage, read> bSortedPos : array<vec4f>;
+
+@group(1) @binding(2)
+var<storage, read> bSortedVel: array<vec4f>;
+
+@group(1) @binding(3)
 var<storage, read_write> bDepth : array<f32>;
+
+@group(1) @binding(4)
+var<storage, read_write> bNorm : array<u32>;
+
+const tolerance = 0.05;
 
 fn render()
 {
@@ -307,64 +353,43 @@ fn render()
 
     if (g_ray.tmax < tmax)
     {
-        bDepth[g_id_io] = g_ray.tmax;
-    }
+        bDepth[g_id_io] = max(0.0, g_ray.tmax);
+
+        let edge1 = bTriangles[g_ray_hit.triangle_index*3 + 1].xyz;    
+	    let edge2 = bTriangles[g_ray_hit.triangle_index*3 + 2].xyz;    
+        let norm = normalize(cross(edge1, edge2));
+        let u8norm = vec3u((norm + 1.0) * 0.5 * 255.0);
+        bNorm[g_id_io] = u8norm.x + (u8norm.y << 8) + (u8norm.z << 16);
+    }    
 }
 
-struct Camera
-{
-    projMat: mat4x4f, 
-    viewMat: mat4x4f,
-    invProjMat: mat4x4f,
-    invViewMat: mat4x4f,
-    eyePos: vec4f,
-    scissor: vec4f
-};
-
-@group(1) @binding(1)
-var<uniform> uCamera: Camera;
-
-struct View
-{
-    width: i32,
-    height: i32
-};
-
-@group(1) @binding(2)
-var<uniform> uView: View;
 
 @compute @workgroup_size(64,1,1)
-fn main(
-    @builtin(local_invocation_id) LocalInvocationID : vec3<u32>,
-    @builtin(workgroup_id) WorkgroupID : vec3<u32>)
+fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
 {
-    let bw = (uView.width + 7)/8;
-    let x = i32(LocalInvocationID.x)%8 + i32(WorkgroupID.x)%bw * 8;
-    let y = i32(LocalInvocationID.x)/8 + i32(WorkgroupID.x)/bw * 8;
-
-    if (x>=uView.width || y>uView.height)
+    let idx = GlobalInvocationID.x;
+    if (idx >= arrayLength(&bDepth)) 
     {
         return;
     }
 
-    threadIdx = LocalInvocationID.x;
-        
-    var uv = (vec2(f32(x),f32(y))+ 0.5)/vec2(f32(uView.width), f32(uView.height));  
+    let world_origin = bSortedPos[idx].xyz;
+    let world_move = bSortedVel[idx].xyz * uParams.time_step;
+    let dis = length(world_move);
+    if (dis==0.0)
+    {
+        return;
+    }
+    let world_dir = world_move/dis;
 
-    let clip0 = vec4(uv*2.0 - 1.0, -1.0, 1.0);
-    let clip1 = vec4(uv*2.0 - 1.0, 1.0, 1.0);
-    var view0 = uCamera.invProjMat *clip0; view0 /= view0.w;
-    var view1 = uCamera.invProjMat *clip1; view1 /= view1.w;    
-    let view_dir = normalize(view0.xyz);
-    let world_dir = uCamera.invViewMat * vec4(view_dir, 0.0);
-    let model_eye = (uModel.inverseMat*vec4(uCamera.eyePos.xyz, 1.0)).xyz;      
-    let model_dir = (uModel.inverseMat*world_dir).xyz;    
-    
-    g_id_io = u32(x+y*uView.width); 
-    g_origin = model_eye;
+    let model_origin =(uModel.inverseMat*vec4(world_origin,1.0)).xyz;     
+    let model_dir = (uModel.inverseMat*vec4(world_dir, 0.0)).xyz;    
+
+    g_id_io = idx;
+    g_origin = model_origin;
     g_dir = model_dir;
-    g_tmin = length(view0.xyz);
-    g_tmax = length(view1.xyz);
+    g_tmin = 0.0001;
+    g_tmax = dis + tolerance;
 
     render();
 }
@@ -373,14 +398,14 @@ fn main(
 
 function GetPipeline()
 {
-    if (!("raycast_depth" in engine_ctx.cache.pipelines))
+    if (!("raycast_collide" in engine_ctx.cache.pipelines))
     {
         let shaderModule = engine_ctx.device.createShaderModule({ code: shader_code });
-        let bindGroupLayouts = [engine_ctx.cache.bindGroupLayouts.cwbvh, engine_ctx.cache.bindGroupLayouts.raycast0];
+        let bindGroupLayouts = [engine_ctx.cache.bindGroupLayouts.cwbvh, engine_ctx.cache.bindGroupLayouts.raycast1];
         const pipelineLayoutDesc = { bindGroupLayouts };
         let layout = engine_ctx.device.createPipelineLayout(pipelineLayoutDesc);
         
-        engine_ctx.cache.pipelines.raycast_depth = engine_ctx.device.createComputePipeline({
+        engine_ctx.cache.pipelines.raycast_collide = engine_ctx.device.createComputePipeline({
             layout,
             compute: {
                 module: shaderModule,
@@ -388,21 +413,24 @@ function GetPipeline()
             },
         });
     }
-    return engine_ctx.cache.pipelines.raycast_depth;
+    return engine_ctx.cache.pipelines.raycast_collide;
 }
 
-export function RaycastDepth(commandEncoder, cwbvh, target)
-{
-    let bw = (target.width + 7)/8;
-    let bh = (target.height + 7)/8;
 
+
+export function RaycastCollide(commandEncoder, cwbvh, target)
+{
     let pipeline = GetPipeline();
+
+    let num_particles= target.psystem.numParticles;
+    let num_groups =  Math.floor((num_particles +63)/64);    
+
     const passEncoder = commandEncoder.beginComputePass();
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, cwbvh.bind_group);
     passEncoder.setBindGroup(1, target.bind_group_raycast);
-    passEncoder.dispatchWorkgroups(bw*bh, 1,1); 
+    passEncoder.dispatchWorkgroups(num_groups, 1,1); 
     passEncoder.end();
-
 }
+
 

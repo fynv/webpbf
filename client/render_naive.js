@@ -81,7 +81,7 @@ fn fs_main(input: FSIn) -> @location(0) vec4f
 }
 `;
 
-function GetPipeline(view_format)
+function GetPipeline(view_format, msaa)
 {
     if (!("render_naive" in engine_ctx.cache.pipelines))
     {
@@ -157,6 +157,13 @@ function GetPipeline(view_format)
             primitive,
             depthStencil
         };
+
+        if (msaa)
+        {
+            pipelineDesc.multisample ={
+                count: 4,
+            };
+        }
     
         engine_ctx.cache.pipelines.render_naive = engine_ctx.device.createRenderPipeline(pipelineDesc); 
     }
@@ -203,7 +210,7 @@ export function RenderNaive(passEncoder, camera, psystem, target)
         create_colormap(psystem);
     }
 
-    let pipeline = GetPipeline(target.view_format);
+    let pipeline = GetPipeline(target.view_format, target.msaa);
 
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, camera.bind_group);
