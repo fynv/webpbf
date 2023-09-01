@@ -166,7 +166,7 @@ function init_particles(psystem)
     engine_ctx.queue.writeBuffer(psystem.dVel, 0, psystem.hVel.buffer, 0, psystem.hVel.length * 4);
 }
 
-let speed = 2.0;
+let speed = 1.5;
 let delta_t = 0.0;
 let idx = 0;
 
@@ -194,7 +194,7 @@ function update_flow(psystem)
             let y = Math.abs(r * Math.sin(theta));
 
             psystem.hPos[i*4] = -1.0 + dist;
-            psystem.hPos[i*4 + 1] = 2.0 - psystem.particleRadius * 2.0 - y;
+            psystem.hPos[i*4 + 1] = 1.5 - psystem.particleRadius * 2.0 - y;
             psystem.hPos[i*4 + 2] = x;
             psystem.hPos[i*4 + 3] = 1.0;
 

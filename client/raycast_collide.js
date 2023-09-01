@@ -337,8 +337,6 @@ var<storage, read_write> bDepth : array<f32>;
 @group(1) @binding(4)
 var<storage, read_write> bNorm : array<u32>;
 
-const tolerance = 0.05;
-
 fn render()
 {
     let tmax = bDepth[g_id_io];
@@ -357,12 +355,14 @@ fn render()
 
         let edge1 = bTriangles[g_ray_hit.triangle_index*3 + 1].xyz;    
 	    let edge2 = bTriangles[g_ray_hit.triangle_index*3 + 2].xyz;    
-        let norm = normalize(cross(edge1, edge2));
-        let u8norm = vec3u((norm + 1.0) * 0.5 * 255.0);
+        let model_norm = cross(edge1, edge2);
+        let world_norm = normalize((uModel.normalMat * vec4(model_norm, 0.0)).xyz);
+        let u8norm = vec3u((world_norm + 1.0) * 0.5 * 255.0);
         bNorm[g_id_io] = u8norm.x + (u8norm.y << 8) + (u8norm.z << 16);
     }    
 }
 
+const tolerance = 0.05;
 
 @compute @workgroup_size(64,1,1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
@@ -388,7 +388,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
     g_id_io = idx;
     g_origin = model_origin;
     g_dir = model_dir;
-    g_tmin = 0.0001;
+    g_tmin = 0.0;
     g_tmax = dis + tolerance;
 
     render();
