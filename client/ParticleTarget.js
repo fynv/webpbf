@@ -61,19 +61,23 @@ export class ParticleTarget
                 this.depth_width = depth_width;
                 this.depth_height = depth_height;
 
-                let layout_entries_particle_depth = [
-                    {
-                        binding: 0,
-                        visibility: GPUShaderStage.FRAGMENT,
-                        texture:{
-                            viewDimension: "2d",
-                            sampleType: "unfilterable-float"
+                if (!("particle_depth" in engine_ctx.cache.bindGroupLayouts))
+                {
+                    let layout_entries_particle_depth = [
+                        {
+                            binding: 0,
+                            visibility: GPUShaderStage.FRAGMENT,
+                            texture:{
+                                viewDimension: "2d",
+                                sampleType: "unfilterable-float"
+                            }
                         }
-                    }
-                ];    
+                    ];   
 
-                let bindGroupLayout = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_particle_depth });
-                engine_ctx.cache.bindGroupLayouts.particle_depth = bindGroupLayout;
+                    engine_ctx.cache.bindGroupLayouts.particle_depth = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_particle_depth });
+                }
+
+                let bindGroupLayout =  engine_ctx.cache.bindGroupLayouts.particle_depth;
 
                 let group_entries0 = [
                     {
@@ -95,32 +99,36 @@ export class ParticleTarget
                 this.bind_groups_depth[1] = engine_ctx.device.createBindGroup({ layout: bindGroupLayout, entries: group_entries1});
             }
 
-            let layout_entries_particle_frame = [
-                {
-                    binding: 0,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture:{
-                        viewDimension: "2d",
-                        sampleType: "unfilterable-float"
+            if (!("particle_frame" in engine_ctx.cache.bindGroupLayouts))
+            {
+                let layout_entries_particle_frame = [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture:{
+                            viewDimension: "2d",
+                            sampleType: "unfilterable-float"
+                        }
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture:{
+                            viewDimension: "2d",
+                            sampleType: "depth"
+                        }
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        sampler:{}
                     }
-                },
-                {
-                    binding: 1,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture:{
-                        viewDimension: "2d",
-                        sampleType: "depth"
-                    }
-                },
-                {
-                    binding: 2,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    sampler:{}
-                }
-            ]; 
+                ]; 
+                
+                engine_ctx.cache.bindGroupLayouts.particle_frame = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_particle_frame });
+            }
 
-            let bindGroupLayoutFrame = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_particle_frame });
-            engine_ctx.cache.bindGroupLayouts.particle_frame = bindGroupLayoutFrame;
+            let bindGroupLayoutFrame =engine_ctx.cache.bindGroupLayouts.particle_frame;
 
             let group_entries_frame = [
                 {
