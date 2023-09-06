@@ -1,11 +1,14 @@
 export class ParticleTarget
 {
-    constructor()
+    constructor(render_target)
     {
+        this.render_target = render_target;
         this.tex_thickness = null;
         this.view_thickness = null;
         this.tex_depth0 = null;
         this.view_depth0 = null;
+        this.tex_video0 = null;
+        this.view_video0 = null;
 
         this.tex_depth = [null, null];
         this.view_depth = [null, null];
@@ -22,8 +25,10 @@ export class ParticleTarget
         });
     }
 
-    update(width , height)
+    update()
     {
+        let width = this.render_target.width;
+        let height = this.render_target.height;
         if (this.view_thickness == null || width!=this.width || height!=this.height)
         {
             this.tex_thickness = engine_ctx.device.createTexture({
@@ -42,6 +47,14 @@ export class ParticleTarget
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
             });
             this.view_depth0 = this.tex_depth0.createView();
+
+            this.tex_video0 = engine_ctx.device.createTexture({
+                size: [width, height],
+                dimension: "2d",
+                format: this.render_target.view_format,
+                usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING
+            });
+            this.view_video0 = this.tex_video0.createView();
 
             this.width = width;
             this.height = height;            
@@ -133,7 +146,22 @@ export class ParticleTarget
                         binding: 2,
                         visibility: GPUShaderStage.FRAGMENT,
                         sampler:{}
-                    }
+                    },
+                    {
+                        binding: 3,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture:{
+                            viewDimension: "2d",
+                            sampleType: "depth"
+                        }
+                    },
+                    {
+                        binding: 4,
+                        visibility: GPUShaderStage.FRAGMENT,
+                        texture:{
+                            viewDimension: "2d",                            
+                        }
+                    },
                 ]; 
                 
                 engine_ctx.cache.bindGroupLayouts.particle_frame = engine_ctx.device.createBindGroupLayout({ entries: layout_entries_particle_frame });
@@ -153,7 +181,15 @@ export class ParticleTarget
                 {
                     binding: 2,
                     resource: this.sampler
-                }
+                },
+                {
+                    binding: 3,
+                    resource: this.view_depth0
+                },
+                {
+                    binding: 4,
+                    resource: this.view_video0
+                },
             ];
 
             this.bind_group_frame = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutFrame, entries: group_entries_frame});

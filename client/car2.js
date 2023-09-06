@@ -238,7 +238,7 @@ export async function test()
 
     let msaa = true;
     let render_target = new GPURenderTarget(canvas_ctx, msaa);        
-    let particle_target = new ParticleTarget(); 
+    let particle_target = new ParticleTarget(render_target); 
     
     let camera = new PerspectiveCameraEx();
     camera.position.set(0, 1, 5); 
@@ -347,7 +347,7 @@ export async function test()
         }
 
         render_target.update();         
-        particle_target.update(render_target.width, render_target.height);  
+        particle_target.update();  
 
         camera.updateMatrixWorld(false);
     	camera.updateConstant();        
@@ -870,7 +870,9 @@ export async function test()
             
             DepthDownsample(passEncoder,render_target);
 
-            passEncoder.end();        
+            passEncoder.end();                
+            
+            commandEncoder.copyTextureToTexture({ texture: render_target.tex_video}, { texture: particle_target.tex_video0}, [render_target.width, render_target.height]);
 
         }
 

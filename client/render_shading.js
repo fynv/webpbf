@@ -42,7 +42,7 @@ fn fetch_pos(id: vec2i) -> vec3f
     var UV = (vec2f(id)+0.5)/vec2f(size);
     let depth = textureSampleLevel(uTexDepth, uSampler1, UV, 0);
     UV.y = 1.0 - UV.y;    
-    let pos_clip = vec3(UV*2.0 -1.0, depth);
+    let pos_clip = vec3(UV, depth)*2.0 -1.0;
     var pos_view = uCamera.invProjMat * vec4(pos_clip, 1.0);
     pos_view *= 1.0/pos_view.w;
     return pos_view.xyz;

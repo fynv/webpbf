@@ -28,9 +28,9 @@ export class GPURenderTarget
             width = this.canvas_ctx.canvas.width;
             height = this.canvas_ctx.canvas.height;
             this.view_format =  this.canvas_ctx.view_format;
-
-            let colorTexture = this.canvas_ctx.context.getCurrentTexture();
-            this.view_video =  colorTexture.createView({ format: this.view_format});
+            
+            this.tex_video = this.canvas_ctx.context.getCurrentTexture();
+            this.view_video =  this.tex_video.createView({ format: this.view_format});
         }
 
         if (this.view_video == null || width!=this.width || height!=this.height)

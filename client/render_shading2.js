@@ -20,6 +20,12 @@ var uTexDepth: texture_depth_2d;
 @group(1) @binding(2)
 var uSampler1: sampler;
 
+@group(1) @binding(3)
+var uTexDepth0: texture_depth_2d;
+
+@group(1) @binding(4)
+var uTexVideo0: texture_2d<f32>;
+
 struct VSOut 
 {
     @builtin(position) Position: vec4f,    
@@ -42,7 +48,7 @@ fn fetch_pos(id: vec2i) -> vec3f
     var UV = (vec2f(id)+0.5)/vec2f(size);
     let depth = textureSampleLevel(uTexDepth, uSampler1, UV, 0);
     UV.y = 1.0 - UV.y;    
-    let pos_clip = vec3(UV*2.0 -1.0, depth);
+    let pos_clip = vec3(UV, depth)*2.0 -1.0;
     var pos_view = uCamera.invProjMat * vec4(pos_clip, 1.0);
     pos_view *= 1.0/pos_view.w;
     return pos_view.xyz;
@@ -147,7 +153,80 @@ fn fs_main(@builtin(position) coord_pix: vec4f) -> @location(0) vec4f
 
     let col1 = getReflRadiance(reflectVec, 0.0);       
     let col2 = vec3(0.05, 0.1, 0.3);        
-    return vec4(col1 * 0.3 + col2 * alpha, alpha);
+    
+    let refractDir = refract(normalize(ViewPosition), ViewNormal, 1.0/1.33);
+    let size_view = textureDimensions(uTexVideo0);
+    
+    let rows_proj = transpose(uCamera.projMat);
+    let dx = dot(rows_proj[0].xyz, refractDir);
+    let dy = dot(rows_proj[1].xyz, refractDir);
+    let dw = dot(rows_proj[3], vec4(ViewPosition, 1.0));
+    let dxdt = dx/dw * f32(size_view.x)*0.5;
+    let dydt = dy/dw * f32(size_view.y)*0.5;
+    let dldt = sqrt(dxdt*dxdt + dydt*dydt);
+    
+    var t = 0.0;
+
+    var view_pos = ViewPosition + t*refractDir; 
+    var proj = uCamera.projMat * vec4(view_pos, 1.0);
+    proj*= 1.0/proj.w;
+
+    proj.x = clamp(proj.x, -1.0, 1.0);
+    proj.y = clamp(proj.y, -1.0, 1.0);
+
+    var uvz = vec3((proj.x + 1.0)*0.5, (1.0 - proj.y)*0.5, (proj.z + 1.0)*0.5);
+    let depth = textureSampleLevel(uTexDepth0, uSampler1, uvz.xy, 0);
+
+    var pix_pos = uvz.xy * vec2f(size_view);
+
+    if (uvz.z<depth && dldt>0.001)
+    {
+        let step = 5.0/dldt; 
+        var old_t = t;
+        t+=step;
+
+        while(view_pos.z <0.0)
+        {
+            view_pos = ViewPosition + t*refractDir;
+            proj = uCamera.projMat * vec4(view_pos, 1.0);
+            proj*= 1.0/proj.w;
+
+            proj.x = clamp(proj.x, -1.0, 1.0);
+            proj.y = clamp(proj.y, -1.0, 1.0);
+
+            let old_z = uvz.z;
+            uvz = vec3((proj.x + 1.0)*0.5, (1.0 - proj.y)*0.5, (proj.z + 1.0)*0.5);
+            let depth = textureSampleLevel(uTexDepth0, uSampler1, uvz.xy, 0);
+            if (uvz.z>=depth)
+            {
+                let k = (uvz.z-depth)/(uvz.z - old_z);
+                t = old_t*k + t*(1.0-k);
+
+                view_pos = ViewPosition + t*refractDir;
+                proj = uCamera.projMat * vec4(view_pos, 1.0);
+                proj*= 1.0/proj.w;
+
+                proj.x = clamp(proj.x, -1.0, 1.0);
+                proj.y = clamp(proj.y, -1.0, 1.0);
+                uvz = vec3((proj.x + 1.0)*0.5, (1.0 - proj.y)*0.5, (proj.z + 1.0)*0.5);
+                break;
+            }
+
+            let old_pix_pos = pix_pos;
+            pix_pos = uvz.xy * vec2f(size_view);
+            let delta = length(pix_pos - old_pix_pos);
+            if (delta<1.0)
+            {
+                break;
+            }
+
+            old_t = t;
+            t+=step;
+        }
+    }
+    
+    let col3 = textureSampleLevel(uTexVideo0, uSampler1, uvz.xy, 0).xyz;   
+    return vec4(col1 * 0.3 + col2 * alpha + col3*(1.0-alpha), 1.0);
 }
 `;
 
