@@ -9,6 +9,7 @@ import { UpdateVelocity } from "./updateVelocity.js"
 import { UpdatePosition2 } from "./updatePosition2.js"
 import { RaycastTarget } from "./RaycastTarget1.js"
 import { RaycastCollide } from "./raycast_collide.js"
+import { RaycastCollideBall } from "./raycast_collide_ball.js"
 
 const workgroup_size = 64;
 const workgroup_size_2x = workgroup_size*2;
@@ -796,6 +797,8 @@ export class ParticleSystem
                 RaycastCollide(commandEncoder, primitive.cwbvh, this.raycast_target);
             }
         }
+
+        // RaycastCollideBall(commandEncoder, this.raycast_target);
 
         UpdatePosition2(commandEncoder, this);
 

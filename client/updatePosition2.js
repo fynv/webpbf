@@ -46,7 +46,7 @@ var<storage, read> bDepth : array<f32>;
 @group(0) @binding(7)
 var<storage, read> bNorm : array<u32>;
 
-const tolerance = 0.05;
+const tolerance = 0.001;
 
 @compute @workgroup_size(${workgroup_size},1,1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
@@ -68,11 +68,15 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)
     {
         let hit_dis = bDepth[idx];
         if (hit_dis < dis + tolerance)
-        {
+        {          
+            
+            //world_move = vec3(0.0);
+            world_move = max(hit_dis - tolerance, 0.0) * dir;
+
+            //vel = vec3(0.0);
             let u32norm = bNorm[idx];
             let u8norm = vec3(u32norm & 0xffu, (u32norm>>8)& 0xffu, (u32norm>>16)& 0xffu);
-            let norm = normalize((vec3f(u8norm)+0.5)/128.0 - 1.0);          
-            world_move = max(hit_dis - tolerance, 0.0) * dir;
+            let norm = normalize((vec3f(u8norm)+0.5)/128.0 - 1.0);
             vel -= 1.94* dot(vel, norm) * norm;
         }
     }

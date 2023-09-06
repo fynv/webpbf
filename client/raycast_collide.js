@@ -362,7 +362,7 @@ fn render()
     }    
 }
 
-const tolerance = 0.05;
+const tolerance = 0.001;
 
 @compute @workgroup_size(64,1,1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>)

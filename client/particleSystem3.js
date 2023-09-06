@@ -5,7 +5,7 @@ import { HashCount } from "./hashCount.js"
 import { PrefixSum } from "./prefix_sum.js"
 import { Scatter } from "./scatter.js"
 import { UpdateDensity } from "./updateDensity.js"
-import { UpdatePosition } from "./updatePosition.js"
+import { UpdatePosition } from "./updatePosition3.js"
 
 const workgroup_size = 64;
 const workgroup_size_2x = workgroup_size*2;
@@ -659,7 +659,7 @@ export class ParticleSystem
         this.bind_group_render = engine_ctx.device.createBindGroup({ layout: bindGroupLayoutRender, entries: group_entries_render});
     }
 
-    update()
+    update(height_target)
     {
         {
             const uniform = new Float32Array(32);
@@ -703,7 +703,7 @@ export class ParticleSystem
         PrefixSum(commandEncoder, this);
         Scatter(commandEncoder, this);
         UpdateDensity(commandEncoder, this);
-        UpdatePosition(commandEncoder, this);
+        UpdatePosition(commandEncoder, this, height_target);
          
         let cmdBuf = commandEncoder.finish();
         engine_ctx.queue.submit([cmdBuf]);
